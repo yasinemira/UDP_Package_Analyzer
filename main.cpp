@@ -2,8 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
-#include <memory>
-#include "udppackage.h"
+#include "src/UdpPackageAnalyzer.h"
 
 int main(int argc, char *argv[])
 {
@@ -30,7 +29,7 @@ int main(int argc, char *argv[])
     0x7d, 0x7d /* }} */
     };
 
-    UdpPackage packageInstance((char*)packet, len);
+    UdpPackageAnalyzer packageInstance((char*)packet, len);
     packageInstance.displayPackageDetails();
 
     /***---------- Setting up the UI engine ----------***/

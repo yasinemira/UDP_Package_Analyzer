@@ -7,7 +7,7 @@
 #include <QDebug>
 #include <QString>
 
-#include "udppackage.h"
+#include "UdpPackageAnalyzer.h"
 
 static constexpr int ethernetFramelength = 20;
 static constexpr int ipv4HeaderLength = 14;
@@ -15,20 +15,20 @@ static constexpr int udpHeaderLength = 8;
 
 static int currentPackageNumber = 0;
 
-UdpPackage::UdpPackage(QObject *parent)
+UdpPackageAnalyzer::UdpPackageAnalyzer(QObject *parent)
     : QObject(parent)
 {
     ++currentPackageNumber;
     std::cout << "\nPackage creation for #" << currentPackageNumber << " requested....." << std::endl;
 }
 
-UdpPackage::~UdpPackage()
+UdpPackageAnalyzer::~UdpPackageAnalyzer()
 {
     std::cout << "\nPackage termination for #" << currentPackageNumber << " requested....." << std::endl;
     --currentPackageNumber;
 }
 
-UdpPackage::UdpPackage(char* ethernetPacket, int packetLength)
+UdpPackageAnalyzer::UdpPackageAnalyzer(char* ethernetPacket, int packetLength)
 {
     setEthernetFrameHeader(ethernetPacket, packetLength);
     setIpv4Header(ethernetPacket);
@@ -45,7 +45,7 @@ UdpPackage::UdpPackage(char* ethernetPacket, int packetLength)
     setPayloadLength();
 }
 
-void UdpPackage::displayPackageDetails()
+void UdpPackageAnalyzer::displayPackageDetails()
 {
     qDebug() << "■ Ethernet frame header: " << m_ethernetFrameHeader <<
                 "\n■ IPv4 header: " << m_ipv4Header <<
@@ -65,22 +65,23 @@ void UdpPackage::displayPackageDetails()
 /*!
  * \brief Setter function for parsing the Ethernet Frame Header
  */
-void UdpPackage::setEthernetFrameHeader(char* ethernetPacket, int packetLength)
+void UdpPackageAnalyzer::setEthernetFrameHeader(char* ethernetPacket, int packetLength)
 {
     std::stringstream tempString;
 
     for (int i = 0; i < std::min(packetLength, ethernetFramelength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering the Ethernet Frame Header component
+        tempString << ethernetPacket[i]; 
     }
 
     m_ethernetFrameHeader = QString::fromStdString(convertToHex(tempString.str(), 1));
+    emit ethernetFrameHeaderChanged();
 }
 
 /*!
  * \brief Getter function for parsing the Ethernet Frame Header
  * \return Ethernet Frame Header content - 20 byte
  */
-QString UdpPackage::getEthernetFrameHeader() const
+QString UdpPackageAnalyzer::getEthernetFrameHeader() const
 {
     return m_ethernetFrameHeader;
 }
@@ -88,22 +89,23 @@ QString UdpPackage::getEthernetFrameHeader() const
 /*!
  * \brief Setter function for parsing the IPv4 Header
  */
-void UdpPackage::setIpv4Header(char* ethernetPacket)
+void UdpPackageAnalyzer::setIpv4Header(char* ethernetPacket)
 {
     std::stringstream tempString;
 
     for (int i = ethernetFramelength; i < (ethernetFramelength + ipv4HeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering IPv4 frame header component
+        tempString << ethernetPacket[i]; 
     }
 
     m_ipv4Header = QString::fromStdString(convertToHex(tempString.str(), 1));
+    emit ipv4HeaderChanged();
 }
 
 /*!
  * \brief Getter function for parsing the IPv4 Header
  * \return IPv4 Header content - 14 byte
  */
-QString UdpPackage::getIpv4Header() const
+QString UdpPackageAnalyzer::getIpv4Header() const
 {
     return m_ipv4Header;
 }
@@ -111,22 +113,23 @@ QString UdpPackage::getIpv4Header() const
 /*!
  * \brief Setter function for parsing the IPv4 Header Checksum
  */
-void UdpPackage::setIpv4HeaderChecksum(char* ethernetPacket)
+void UdpPackageAnalyzer::setIpv4HeaderChecksum(char* ethernetPacket)
 {
     std::stringstream tempString;
 
     for (int i = ethernetFramelength; i < (ethernetFramelength + ipv4HeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering IPv4 frame header component
+        tempString << ethernetPacket[i]; 
     }
 
     m_ipv4HeaderChecksum = "0x" + QString::fromStdString(convertToHex(tempString.str().substr(4,2), 0));
+    emit ipv4HeaderChecksumChanged();
 }
 
 /*!
  * \brief Getter function for parsing the IP checksum from IPv4 Header
  * \return IPv4 header checksum content - 2 byte
  */
-QString UdpPackage::getIpv4HeaderChecksum() const
+QString UdpPackageAnalyzer::getIpv4HeaderChecksum() const
 {
     return m_ipv4HeaderChecksum;
 }
@@ -134,7 +137,7 @@ QString UdpPackage::getIpv4HeaderChecksum() const
 /*!
  * \brief Setter function for parsing the source IP Address
  */
-void UdpPackage::setSourceIPAdress(char* ethernetPacket)
+void UdpPackageAnalyzer::setSourceIPAdress(char* ethernetPacket)
 {
     std::string sourceIPAdressTemp;
     std::stringstream tempString;
@@ -143,7 +146,7 @@ void UdpPackage::setSourceIPAdress(char* ethernetPacket)
     std::array <std::string, 4> networkIDComponents;
 
     for (int i = ethernetFramelength; i < (ethernetFramelength + ipv4HeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering IPv4 frame header component
+        tempString << ethernetPacket[i]; 
     }
 
     sourceIPAdressTemp = convertToHex(tempString.str().substr(6,4), 0);
@@ -157,13 +160,14 @@ void UdpPackage::setSourceIPAdress(char* ethernetPacket)
     for (auto iter = networkIDDecSources.cbegin(); iter != networkIDDecSources.cend(); ++iter) {
         m_sourceIPAdress += QString::number(*iter) + (*iter == networkIDDecSources.back() ? "" : ".");
     }
+    emit sourceIPAdressChanged();
 }
 
 /*!
  * \brief Getter function for parsing the Source IP Address
  * \return Source IP Address - 4 byte
  */
-QString UdpPackage::getSourceIPAdress() const
+QString UdpPackageAnalyzer::getSourceIPAdress() const
 {
     return m_sourceIPAdress;
 }
@@ -171,7 +175,7 @@ QString UdpPackage::getSourceIPAdress() const
 /*!
  * \brief Setter function for parsing the destination IP Address
  */
-void UdpPackage::setDestinationIPAdress(char* ethernetPacket)
+void UdpPackageAnalyzer::setDestinationIPAdress(char* ethernetPacket)
 {
     std::string destinationIPAdressTemp;
     std::stringstream tempString;
@@ -180,7 +184,7 @@ void UdpPackage::setDestinationIPAdress(char* ethernetPacket)
     std::array <std::string, 4> networkIDComponents;
 
     for (int i = ethernetFramelength; i < (ethernetFramelength + ipv4HeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering IPv4 frame header component
+        tempString << ethernetPacket[i]; 
     }
 
     destinationIPAdressTemp = convertToHex(tempString.str().substr(10,4), 0);
@@ -194,13 +198,14 @@ void UdpPackage::setDestinationIPAdress(char* ethernetPacket)
     for (auto iter = networkIDDecDestinations.cbegin(); iter != networkIDDecDestinations.cend(); ++iter) {
         m_destinationIPAdress += QString::number(*iter) + (*iter == networkIDDecDestinations.back() ? "" : ".");
     }
+    emit destinationIPAdressChanged();
 }
 
 /*!
  * \brief Getter function for parsing the Destination IP Address
  * \return Destination IP Address - 4 byte
  */
-QString UdpPackage::getDestinationIPAdress() const
+QString UdpPackageAnalyzer::getDestinationIPAdress() const
 {
     return m_destinationIPAdress;
 }
@@ -208,22 +213,23 @@ QString UdpPackage::getDestinationIPAdress() const
 /*!
  * \brief Setter function for parsing the UDP Header
  */
-void UdpPackage::setUdpHeader(char* ethernetPacket)
+void UdpPackageAnalyzer::setUdpHeader(char* ethernetPacket)
 {
     std::stringstream tempString;
 
     for (int i = (ethernetFramelength + ipv4HeaderLength); i < (ethernetFramelength + ipv4HeaderLength + udpHeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering the UDP Header component
+        tempString << ethernetPacket[i]; 
     }
 
     m_udpHeader = QString::fromStdString(convertToHex(tempString.str(), 1));
+    emit udpHeaderChanged();
 }
 
 /*!
  * \brief Getter function for parsing the UDP Header frame
  * \return UDP Header frame content  - 8 byte
  */
-QString UdpPackage::getUdpHeader() const
+QString UdpPackageAnalyzer::getUdpHeader() const
 {
     return m_udpHeader;
 }
@@ -231,14 +237,14 @@ QString UdpPackage::getUdpHeader() const
 /*!
  * \brief Setter function for parsing the source port
  */
-void UdpPackage::setSourcePort(char* ethernetPacket)
+void UdpPackageAnalyzer::setSourcePort(char* ethernetPacket)
 {
     unsigned int sourcePortDec;
     std::string sourcePortTemp;
     std::stringstream tempString;
 
     for (int i = (ethernetFramelength + ipv4HeaderLength); i < (ethernetFramelength + ipv4HeaderLength + udpHeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering the UDP Header component
+        tempString << ethernetPacket[i]; 
     }
 
     sourcePortTemp = convertToHex(tempString.str().substr(0,2), 0);
@@ -248,13 +254,14 @@ void UdpPackage::setSourcePort(char* ethernetPacket)
     ssSourcePort >> sourcePortDec;
 
     m_sourcePort = QString::number(sourcePortDec);
+    emit sourcePortChanged();
 }
 
 /*!
  * \brief Getter function for parsing the source port from UDP header
  * \return Source port content - 2 byte
  */
-QString UdpPackage::getSourcePort() const
+QString UdpPackageAnalyzer::getSourcePort() const
 {
     return m_sourcePort;
 }
@@ -262,14 +269,14 @@ QString UdpPackage::getSourcePort() const
 /*!
  * \brief Setter function for parsing the destination port
  */
-void UdpPackage::setDestinationPort(char* ethernetPacket)
+void UdpPackageAnalyzer::setDestinationPort(char* ethernetPacket)
 {
     unsigned int destinationPortDec;
     std::string destinationPortTemp;
     std::stringstream tempString;
 
     for (int i = (ethernetFramelength + ipv4HeaderLength); i < (ethernetFramelength + ipv4HeaderLength + udpHeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering the UDP Header component
+        tempString << ethernetPacket[i]; 
     }
 
     destinationPortTemp = convertToHex(tempString.str().substr(2,2), 0);
@@ -279,13 +286,14 @@ void UdpPackage::setDestinationPort(char* ethernetPacket)
     ssDestinationPort >> destinationPortDec;
 
     m_destinationPort =  QString::number(destinationPortDec);
+    emit destinationPortChanged();
 }
 
 /*!
  * \brief Getter function for parsing the destination port from UDP header
  * \return Destination port content - 2 byte
  */
-QString UdpPackage::getDestinationPort() const
+QString UdpPackageAnalyzer::getDestinationPort() const
 {
     return m_destinationPort;
 }
@@ -293,25 +301,26 @@ QString UdpPackage::getDestinationPort() const
 /*!
  * \brief Setter function for parsing the UDP Checksum
  */
-void UdpPackage::setUdpChecksum(char* ethernetPacket)
+void UdpPackageAnalyzer::setUdpChecksum(char* ethernetPacket)
 {
     std::string udpChecksumTemp;
     std::stringstream tempString;
 
     for (int i = (ethernetFramelength + ipv4HeaderLength); i < (ethernetFramelength + ipv4HeaderLength + udpHeaderLength); ++i) {
-        tempString << ethernetPacket[i]; // Buffering the UDP Header component
+        tempString << ethernetPacket[i]; 
     }
 
     udpChecksumTemp = convertToHex(tempString.str().substr(6,2), 0);
 
     m_udpChecksum = "0x" + QString::fromStdString(udpChecksumTemp);
+    emit udpChecksumChanged();
 }
 
 /*!
  * \brief Getter function for parsing the UDP checksum from UDP header
  * \return UDP checksum content - 2 byte
  */
-QString UdpPackage::getUdpChecksum() const
+QString UdpPackageAnalyzer::getUdpChecksum() const
 {
     return m_udpChecksum;
 }
@@ -319,22 +328,23 @@ QString UdpPackage::getUdpChecksum() const
 /*!
  * \brief Setter function for parsing the payload
  */
-void UdpPackage::setPayload(char* ethernetPacket, int packetLength)
+void UdpPackageAnalyzer::setPayload(char* ethernetPacket, int packetLength)
 {
     std::stringstream tempString;
 
     for (int i = (ethernetFramelength + ipv4HeaderLength + udpHeaderLength); i < packetLength; ++i) {
-        tempString << ethernetPacket[i]; // Buffering the UDP Header component
+        tempString << ethernetPacket[i]; 
     }
 
     m_payload = QString::fromStdString(convertToHex(tempString.str(), 1));
+    emit payloadChanged();
 }
 
 /*!
  * \brief Getter function for parsing the Payload
  * \return Payload content
  */
-QString UdpPackage::getPayload() const
+QString UdpPackageAnalyzer::getPayload() const
 {
     return m_payload;
 }
@@ -342,16 +352,17 @@ QString UdpPackage::getPayload() const
 /*!
  * \brief Setter function for parsing main the payload size
  */
-void UdpPackage::setPayloadLength()
+void UdpPackageAnalyzer::setPayloadLength()
 {
     m_payloadLength = m_packetLength - (ethernetFramelength + ipv4HeaderLength + udpHeaderLength);
+    emit payloadLengthChanged();
 }
 
 /*!
  * \brief Getter function for parsing the payload length
  * \return Payload size
  */
-int UdpPackage::getPayloadLength() const
+int UdpPackageAnalyzer::getPayloadLength() const
 {
     return m_payloadLength;
 }
@@ -359,7 +370,7 @@ int UdpPackage::getPayloadLength() const
 /*!
  * \brief Setter function for parsing the whole package at once
  */
-void UdpPackage::setMainPacket(char* ethernetPacket, int packetLength)
+void UdpPackageAnalyzer::setMainPacket(char* ethernetPacket, int packetLength)
 {
     std::stringstream tempString;
 
@@ -374,7 +385,7 @@ void UdpPackage::setMainPacket(char* ethernetPacket, int packetLength)
  * \brief Getter function for parsing the whole UDP Packet
  * \return UDP Packet content
  */
-QString UdpPackage::getMainPacket() const
+QString UdpPackageAnalyzer::getMainPacket() const
 {
     return m_mainPacket;
 }
@@ -382,16 +393,17 @@ QString UdpPackage::getMainPacket() const
 /*!
  * \brief Setter function for parsing main the packet size
  */
-void UdpPackage::setPacketLength(int packetLength)
+void UdpPackageAnalyzer::setPacketLength(int packetLength)
 {
     m_packetLength = packetLength;
+    emit packetLengthChanged(packetLength);
 }
 
 /*!
  * \brief Getter function for parsing the packet length
  * \return Main packet size
  */
-int UdpPackage::getPacketLength() const
+int UdpPackageAnalyzer::getPacketLength() const
 {
     return m_packetLength;
 }
@@ -402,7 +414,7 @@ int UdpPackage::getPacketLength() const
  * \param spaceSelection - selection option up to user for printing out -> 0: no space, 1: space
  * \return To-hex-converted value of the relevant frame
  */
-std::string UdpPackage::convertToHex(const std::string &frameData, bool spaceSelection) {
+std::string UdpPackageAnalyzer::convertToHex(const std::string &frameData, bool spaceSelection) {
 
     std::stringstream streamer;
 
